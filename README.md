@@ -1,5 +1,5 @@
 # Example Pluto run for the Whole Sun convection benchmark 
-This repository holds an example run for the Whole Sun convection benchmark. This example is meant to be compiled and run with the [PLUTO](http://plutocode.ph.unito.it/) code. This example corresponds to runs #3 of the benchmark with theta=10, sigma=0.
+This repository holds an example run for the Whole Sun convection benchmark. This example is meant to be compiled and run with the [PLUTO](http://plutocode.ph.unito.it/) code. This example corresponds to runs #3 of the benchmark with theta=10, sigma=0.1
 
 ## Files description
 The files in the repository are the following : 
