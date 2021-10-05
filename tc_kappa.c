@@ -36,15 +36,15 @@ void TC_kappa(double *v, double x1, double x2, double x3,
  *    
  *********************************************************************** */
 {
+  double mu, T, B2_cgs, nH;
 
+  // Kappa is Ck in our run.
+  *kpar = g_inputParam[CK];
+  
 #if PHYSICS == MHD
   *knor = 0.0;
 #endif
-  
-/* Normalize to code units */
 
-  (*kpar) = g_gamma * g_inputParam[SIGMA] / (g_gamma-1.0);
-  (*knor) = 0.0;
-
-  *phi =1.0e10;
+  // No saturation
+  *phi = 1.0e10;
 }

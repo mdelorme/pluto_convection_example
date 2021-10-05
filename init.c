@@ -1,151 +1,109 @@
 /* ///////////////////////////////////////////////////////////////////// */
 /*! 
-  \file  
-  \brief Contains basic functions for problem initialization.
+  Cartesian slab for the Whole-Sun convection benchmark.
+  This setup is inspired by Cattaneo et al 1991.
 
-  The init.c file collects most of the user-supplied functions useful 
-  for problem configuration.
-  It is automatically searched for by the makefile.
+  The domain is initialized using a polytropic model 
+  T(z)   = (1.0 + theta*z)
+  rho(z) = (1.0 + theta*z)**m
+  P(z)   = (1.0 + theta*z)**(m+1)
 
-  \author A. Mignone (mignone@ph.unito.it)
-  \date   March 5, 2017
+  and closed using a ideal gas equation of state : P = rho * T
+
+  with :
+   . z the depth
+   . m the polytropic index
+   . theta the temperature gradient between the top and the bottom of the box
+
+  in this setup, gravity is expressed as g = theta*(m+1) and applied along positive z. 
+  It is imposed as a constant acceleration over the whole domain. The value is derived
+  from hydrostatic equilibrium at initialization.
+
+  Instability is triggered by imposing a small random perturbation on pressures at startup.
+
+  Vertical boundary conditions :
+   . Top of the domain    (z=0) -> Ttop=1.0
+   . Bottom of the domain (z=1) -> delta T=theta
+   . In both cases : 
+     * Horizontal velocity gradients are null
+     * Vertical velocity is null
+     * Pressure is obtained using hydrostatic equilibrium
+     * Density is recovered using the EOS with the pressure and temperature.
+  Horizontal boundary conditions are taken periodic
+
+  The domain is taken to be [0;4]x[0;4]x[0;1]
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
+#include <assert.h>
 
-int first = 1;
-double theta, m;
+int first = 1; 
+const double Ttop = 1.0;
 
 /* ********************************************************************* */
-void Init (double *v, double x1, double x2, double x3)
-/*! 
- * The Init() function can be used to assign initial conditions as
- * as a function of spatial position.
- *
- * \param [out] v   a pointer to a vector of primitive variables
- * \param [in] x1   coordinate point in the 1st dimension
- * \param [in] x2   coordinate point in the 2nd dimension
- * \param [in] x3   coordinate point in the 3rdt dimension
- *
- * The meaning of x1, x2 and x3 depends on the geometry:
- * \f[ \begin{array}{cccl}
- *    x_1  & x_2    & x_3  & \mathrm{Geometry}    \\ \noalign{\medskip}
- *     \hline
- *    x    &   y    &  z   & \mathrm{Cartesian}   \\ \noalign{\medskip}
- *    R    &   z    &  -   & \mathrm{cylindrical} \\ \noalign{\medskip}
- *    R    & \phi   &  z   & \mathrm{polar}       \\ \noalign{\medskip}
- *    r    & \theta & \phi & \mathrm{spherical} 
- *    \end{array}
- *  \f]
- *
- * Variable names are accessed by means of an index v[nv], where
- * nv = RHO is density, nv = PRS is pressure, nv = (VX1, VX2, VX3) are
- * the three components of velocity, and so forth.
- *
- *********************************************************************** */
-{
+void Init (double *v, double x1, double x2, double x3) {
+
+  // Run parameters
+  int    seed  = g_inputParam[SEED];
+  double mpoly = g_inputParam[MPOLY];
+  double theta = g_inputParam[THETA];
+  double amp   = g_inputParam[AMP];
+
+  // One-time init per process
   if (first) {
-    g_gamma = g_inputParam[GAMMA];
-    theta   = g_inputParam[THETA];
-    m       = g_inputParam[MPOLY];
-
-    // Random seed depending on the process id so that all processes don't generate the same noise
-    srand(prank * g_inputParam[SEED]);
-
+    g_gamma = 5.0/3.0;
+    srand(seed*prank);
     first = 0;
   }
 
-  double z = 1.0 - x3;
-  v[RHO] = pow(1.0 + theta*z, m);
+  // z is the vertical direction
+  double z = x3;
+
+  // Random perturbation
+  double pert = (((float)rand() / RAND_MAX) - 0.5) * amp;
+
+  // We avoid applying the perturbation at the boundaries
+  if (z < 0.1 || z > 0.9)
+    pert = 0.0;
+
+  // ICs
+  v[RHO] = pow(1.0 + theta*z, mpoly);
   v[VX1] = 0.0;
   v[VX2] = 0.0;
   v[VX3] = 0.0;
-  
-  #if HAVE_ENERGY
-  double P = pow(1.0 + theta*z, m+1.0);
-  double pert = ((float)rand() / RAND_MAX - 0.5) * g_inputParam[PERT];
-  v[PRS] = P * (1.0 + pert);
-  #endif
-
-  #if PHYSICS == MHD || PHYSICS == RMHD
-  v[BX1] = 0.0;
-  v[BX2] = 0.0;
-  v[BX3] = 0.0;
-
-  v[AX1] = 0.0;
-  v[AX2] = 0.0;
-  v[AX3] = 0.0;
-  #endif
+  v[PRS] = pow(1.0 + theta*z, mpoly+1.0) * (1.0 + pert);
 }
 
 /* ********************************************************************* */
-void InitDomain (Data *d, Grid *grid)
-/*! 
- * Assign initial condition by looping over the computational domain.
- * Called after the usual Init() function to assign initial conditions
- * on primitive variables.
- * Value assigned here will overwrite those prescribed during Init().
- *
- *
- *********************************************************************** */
-{
-}
+void InitDomain (Data *d, Grid *grid) {}
+void Analysis (const Data *d, Grid *grid) {}
 
-/* ********************************************************************* */
-void Analysis (const Data *d, Grid *grid)
-/*! 
- *  Perform runtime data analysis.
- *
- * \param [in] d the PLUTO Data structure
- * \param [in] grid   pointer to array of Grid structures  
- *
- *********************************************************************** */
-{
+void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid) {
+  /**
+   * Important notes on boundary conditions definitions:
+   *
+   * PLUTO is a finite-volume code which means that traditionnaly we use
+   * values in ghost-cells outside of the domain to impose conditions.
+   * Now due to the restrictions of the run, and the complexity of flux
+   * calculations, we impose values in the boundary to make sure that
+   * the diffusive terms are computed correctly (thermal conduction and
+   * viscosity). The actual hydro flux calculation is overwritten in 
+   * update_stage.c to ensure that the mass flux is 0 through the boundaries
+   *
+   * To do this, we add a new flag in PLUTO : FLAG_BOUNDARY that allows us
+   * to flag the specific cells that are at the boundary. This flag is
+   * set in this function along with the values used for the diffusive solvers.
+   * 
+   * For hydro step, once we have the flag set, we detect it in update_stage.c
+   * and make sure the mass flux is null through the boundary.
+   *
+   * NOTE : The way the pressure is defined at the top of domain can lead
+   *        to negative densities when using high stratification (theta=20)
+   *        with only few points (less than 128). Resolution must be pushed
+   *        for runs with theta=20, or pressure must be defined in another 
+   *        way.
+   **/
 
-}
-#if PHYSICS == MHD
-/* ********************************************************************* */
-void BackgroundField (double x1, double x2, double x3, double *B0)
-/*!
- * Define the component of a static, curl-free background 
- * magnetic field.
- *
- * \param [in] x1  position in the 1st coordinate direction \f$x_1\f$
- * \param [in] x2  position in the 2nd coordinate direction \f$x_2\f$
- * \param [in] x3  position in the 3rd coordinate direction \f$x_3\f$
- * \param [out] B0 array containing the vector componens of the background
- *                 magnetic field
- *********************************************************************** */
-{
-   B0[0] = 0.0;
-   B0[1] = 0.0;
-   B0[2] = 0.0;
-}
-#endif
-
-/* ********************************************************************* */
-void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid) 
-/*! 
- *  Assign user-defined boundary conditions.
- *
- * \param [in,out] d  pointer to the PLUTO data structure containing
- *                    cell-centered primitive quantities (d->Vc) and 
- *                    staggered magnetic fields (d->Vs, when used) to 
- *                    be filled.
- * \param [in] box    pointer to a RBox structure containing the lower
- *                    and upper indices of the ghost zone-centers/nodes
- *                    or edges at which data values should be assigned.
- * \param [in] side   specifies the boundary side where ghost zones need
- *                    to be filled. It can assume the following 
- *                    pre-definite values: X1_BEG, X1_END,
- *                                         X2_BEG, X2_END, 
- *                                         X3_BEG, X3_END.
- *                    The special value side == 0 is used to control
- *                    a region inside the computational domain.
- * \param [in] grid  pointer to an array of Grid structures.
- *
- *********************************************************************** */
-{
   int   i, j, k, nv;
   double  *x1, *x2, *x3;
 
@@ -153,76 +111,92 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   x2 = grid->x[JDIR];
   x3 = grid->x[KDIR];
 
-  if (side == 0) {    /* -- check solution inside domain -- */
-    TOT_LOOP(k,j,i){
-      double z = x3[k];
-      double dz = grid->dx[KDIR][k];
+  // Paramètres du run
+  double theta = g_inputParam[THETA];
+  double m     = g_inputParam[MPOLY];
+  double gval  = theta * (m+1);
+  
+  if (side == X3_BEG) {  // z=0 -> Top of the domain
+    if (box->vpos == CENTER) {
+      BOX_LOOP(box,k,j,i){
+        // Reference index for the cells velocities (mirror of the boundary)
+        int kref = 2*KBEG - (k+1);
+        
+        // Reference state is the first cell in the domain
+        double rho_ref = d->Vc[RHO][KBEG][j][i];
+        double P_ref   = d->Vc[PRS][KBEG][j][i];
+        double T_ref   = P_ref / rho_ref;
 
-      // Rho is left as the pluto defines it at this position
-      // The rest is set according to boundary definition
-      
-      // Bottom boundary
-      if (z < dz) {
-	double rho_up = d->Vc[RHO][k+1][j][i];
-	double P_up   = d->Vc[PRS][k+1][j][i];
-	double T_up   = P_up / rho_up;
-	double T      = T_up + theta*dz;
+	// We compute the pressure using hydrostatic equilibrium
+	// and extrapolate temperature from the value at the boundary (1.0)
+        double dz      = x3[KBEG] - x3[k];
+        double P       = P_ref - dz * rho_ref*gval;
+        double T       = 1.0 + x3[k]*theta;
 
-	d->Vc[VX1][k][j][i] = d->Vc[VX1][k+1][j][i];
-	d->Vc[VX2][k][j][i] = d->Vc[VX2][k+1][j][i];
-	d->Vc[VX3][k][j][i] = 0.0;
-
-	d->Vc[PRS][k][j][i] = d->Vc[RHO][k][j][i] * T;
-      }
-      // Top boundary
-      else if (1.0 - z < dz) {
-	double rho = d->Vc[RHO][k][j][i];
-	double T = 1.0;
-
-	d->Vc[VX1][k][j][i] = d->Vc[VX1][k-1][j][i];
-	d->Vc[VX2][k][j][i] = d->Vc[VX2][k-1][j][i];
-	d->Vc[VX3][k][j][i] = 0.0;
-
-	d->Vc[PRS][k][j][i] = rho * T;
+	// Density is given by the EOS
+        double rho     = P / T;
+          
+        // Finally we fill in the ghost value and flag the boundary
+        d->Vc[PRS][k][j][i] = P;
+        d->Vc[RHO][k][j][i] = rho;
+        d->Vc[VX1][k][j][i] =  d->Vc[VX1][kref][j][i];
+        d->Vc[VX2][k][j][i] =  d->Vc[VX2][kref][j][i];
+        d->Vc[VX3][k][j][i] = -d->Vc[VX3][kref][j][i] * d->Vc[RHO][kref][j][i] / rho; // We make sure rhovz is 0 at boundary
+        d->flag[KBEG-1][j][i] |= FLAG_BOUNDARY;
       }
     }
   }
 
+  if (side == X3_END){  // z=1 -> Bottom of the domain
+    if (box->vpos == CENTER) {
+      BOX_LOOP(box,k,j,i){
+        int kref = 2*KEND - (k-1);
+          
+        // Reference state is the first cell inside the domain
+        double rho_ref = d->Vc[RHO][KEND][j][i];
+        double P_ref   = d->Vc[PRS][KEND][j][i];
+        double T_ref   = P_ref / rho_ref;
+        double dz  = x3[k] - x3[KEND];
+
+        // Temperature is imposed using the gradient
+	// Pressure is recomputed using hydrostatic equilibrium
+	// Density is given by the EOS
+        double T   = T_ref + dz * theta;
+        double P   = P_ref + dz * rho_ref*gval;
+        double rho = P / T;
+
+        // We fill in the ghost and flag the boundary
+        d->Vc[PRS][k][j][i] = P;
+        d->Vc[RHO][k][j][i] = rho;
+        d->Vc[VX1][k][j][i] =  d->Vc[VX1][kref][j][i];
+        d->Vc[VX2][k][j][i] =  d->Vc[VX2][kref][j][i];
+        d->Vc[VX3][k][j][i] = -d->Vc[VX3][kref][j][i] * d->Vc[RHO][kref][j][i] / rho; // We make sure rhovz is 0 at boundary
+
+        d->flag[KEND][j][i] |= FLAG_BOUNDARY;
+      }
+    }
+  }
 }
 
 #if BODY_FORCE != NO
 /* ********************************************************************* */
-void BodyForceVector(double *v, double *g, double x1, double x2, double x3)
-/*!
- * Prescribe the acceleration vector as a function of the coordinates
- * and the vector of primitive variables *v.
- *
- * \param [in] v  pointer to a cell-centered vector of primitive 
- *                variables
- * \param [out] g acceleration vector
- * \param [in] x1  position in the 1st coordinate direction \f$x_1\f$
- * \param [in] x2  position in the 2nd coordinate direction \f$x_2\f$
- * \param [in] x3  position in the 3rd coordinate direction \f$x_3\f$
- *
- *********************************************************************** */
-{
+void BodyForceVector(double *v, double *g, double x1, double x2, double x3) {
+
+  // Gravitational acceleration is theta * (m+1)
+  // We set it to 0 outside of the domain
+  double sgn = 1.0;
+  double z = x3;
+  if (z > 1.0 || z < 0.0)
+    sgn = 0.0;
+  double gval = g_inputParam[THETA] * (g_inputParam[MPOLY] + 1.0) * sgn;
+  
   g[IDIR] = 0.0;
-  g[JDIR] = 0.0; 
-  g[KDIR] = -theta*(m+1.0);
+  g[JDIR] = 0.0;
+  g[KDIR] = gval;  
 }
 /* ********************************************************************* */
 double BodyForcePotential(double x1, double x2, double x3)
-/*!
- * Return the gravitational potential as function of the coordinates.
- *
- * \param [in] x1  position in the 1st coordinate direction \f$x_1\f$
- * \param [in] x2  position in the 2nd coordinate direction \f$x_2\f$
- * \param [in] x3  position in the 3rd coordinate direction \f$x_3\f$
- * 
- * \return The body force potential \f$ \Phi(x_1,x_2,x_3) \f$.
- *
- *********************************************************************** */
 {
-  return 0.0;
+  return 0.0; 
 }
 #endif

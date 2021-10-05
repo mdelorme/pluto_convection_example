@@ -18,6 +18,7 @@ void Visc_nu(double *v, double x1, double x2, double x3,
  *  \return This function has no return value.
  * ************************************************************************** */
 {
-  *nu1 = g_inputParam[CK] * g_inputParam[SIGMA];
+  // According to normalization in the Whole-Sun convection benchmark document (cf eq. 63)
+  *nu1 = (g_gamma-1.0) / g_gamma * g_inputParam[SIGMA] * g_inputParam[CK];
   *nu2 = 0.0;
 }
