@@ -87,7 +87,7 @@ def plot(sid):
     prs_0 = (1.0 + theta*depth)**2.0
     T_0   = prs_0 / rho_0
     
-    axd['A'].imshow(top_slice, origin='lower', extent=ext_top)
+    axd['A'].imshow(top_slice.T, origin='lower', extent=ext_top)
     axd['A'].set_xlabel('X')
     axd['A'].set_ylabel('Y')
     axd['A'].set_title('Temperature slice at z={:.3f}'.format(z[2]))
@@ -96,7 +96,7 @@ def plot(sid):
     axd['B'].imshow(front_slice, origin='lower', extent=ext_front, clim=clim, cmap='bwr')
     axd['B'].set_xlabel('Y')
     axd['B'].set_ylabel('d')
-    axd['B'].set_title('Temperature variation at y=0.5')
+    axd['B'].set_title('Temperature variation at y={}'.format(d.x2[Ny//2]))
     axd['C'].plot(depth, rho, '-k', linewidth=2)
     axd['C'].plot(depth, rho_0, '--k')
     axd['C'].set_xlabel('d')
@@ -125,7 +125,7 @@ def extract_quantities(d):
     mass = (dV * d.rho).sum()
 
     Ek = 0.5 * d.rho * (d.vx1**2.0 + d.vx2**2.0 + d.vx3**2.0) * dV
-    e  = d.rho * d.prs / (d.rho * (gamma-1.0))
+    e  = d.rho * d.prs / (d.rho * (gamma-1.0)) * dV
     E  = Ek + e
 
     Ek = Ek.sum()
@@ -152,9 +152,9 @@ def extract_profiles(dstart, dend):
         d = pp.pload(sid)
 
         T = d.prs / d.rho
-        Tprime   = np.average(T, axis=(0, 1))
-        rhoPrime = np.average(d.rho, axis=(0, 1))
-        Pprime   = np.average(d.prs, axis=(0, 1))
+        Tprime   = T - np.average(T, axis=(0, 1))
+        rhoPrime = d.rho - np.average(d.rho, axis=(0, 1))
+        Pprime   = d.prs - np.average(d.prs, axis=(0, 1))
 
         # Fluxes : Enthalpy, Kinetic, Acoustic, Buoyancy work
         Fe = gamma / (gamma-1.0) * d.rho * Tprime * d.vx3
@@ -202,7 +202,7 @@ def extract_profiles(dstart, dend):
         # Putting everything in a table
         Nz = d.n3_tot
         profiles = np.empty((Nz, 7))
-        profiles[:,0] = 1.0 - d.x3
+        profiles[:,0] = d.x3
         profiles[:,1] = Fe
         profiles[:,2] = Fk
         profiles[:,3] = Fp
@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
     
     # Getting the evolution of all the quantities
-    if not '--no-time-evolution':
+    if not '--no-time-evolution' in sys.argv:
         T    = []
         mass = []
         Ek   = []
