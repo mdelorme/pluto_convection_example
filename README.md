@@ -42,9 +42,9 @@ Since the last version of this repo (feb. 2021) substantial changes have been ma
 ## Plotting and data extraction
 We have also provided in the repo a python script `plot_run.py` which extracts all the information necessary for the plotting of the runs. The script undergoes the following steps :
 
-1- Rendering the simulation. The results are stored as a series of png files in the folder `render`. 
-2- Extracting the time evolution of the simulation. This will result in the creation of the `pluto_time.csv` file in the format required for the benchmark as well as the creation of a `time_evolution.png` image with the evolution in time of the mass as well as the kinetic, internal and total energies.
-3- Extrating the time evolution of temperature profiles. This will result in the creation of a `temperatures.png` file where each line corresponds to the temperature profile of a snapshot. By default we draw one line every 50 snapshots (hence 20 lines for 1000 snapshots). All the lines should be starting at `z=0` from the top temperature (`Ttop=1.0`) and should end at `z=1` with the same gradient.
-4- Finally, the averaged fluxes and profiles for the analysis. These are horizontally averaged and time averaged between the times t=0.895 and t=0.905. This step writes a `pluto_prof.csv` file with the fluxes formatted correctly for the benchmark analysis.
+ 1. Rendering the simulation. The results are stored as a series of png files in the folder `render`. 
+ 2. Extracting the time evolution of the simulation. This will result in the creation of the `pluto_time.csv` file in the format required for the benchmark as well as the creation of a `time_evolution.png` image with the evolution in time of the mass as well as the kinetic, internal and total energies.
+ 3. Extrating the time evolution of temperature profiles. This will result in the creation of a `temperatures.png` file where each line corresponds to the temperature profile of a snapshot. By default we draw one line every 50 snapshots (hence 20 lines for 1000 snapshots). All the lines should be starting at `z=0` from the top temperature (`Ttop=1.0`) and should end at `z=1` with the same gradient.
+ 4. Finally, the averaged fluxes and profiles for the analysis. These are horizontally averaged and time averaged between the times t=0.895 and t=0.905. This step writes a `pluto_prof.csv` file with the fluxes formatted correctly for the benchmark analysis.
 
 Each step can be deactivated by using the following command line arguments after calling the python script : `--no-render` (step 1); `--no-time-evolution` (step 2); `--no-temperatures` (step 3) and `--no-profiles` (step 4).
