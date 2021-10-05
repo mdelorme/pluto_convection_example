@@ -33,4 +33,7 @@
 #define  UNIT_LENGTH                    1.0
 #define  UNIT_VELOCITY                  1.0
 
+// New flag for boundary definition inside the run
+#define  FLAG_BOUNDARY                  128 
+
 /* [End] user-defined constants (do not change this line) */
