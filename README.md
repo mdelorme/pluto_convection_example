@@ -1,7 +1,7 @@
 # Example Pluto run for the Whole Sun convection benchmark 
 This repository holds an example run for the Whole Sun convection benchmark. This example is meant to be compiled and run with the [PLUTO](http://plutocode.ph.unito.it/) code. This example corresponds to runs #3 of the benchmark with theta=10, sigma=0.1. 
 
-Important note : This example is compatible with version 4.3 of PLUTO and has not yet been adapted for 4.4 !
+Version : This repo has been tested and is working with Pluto 4.4
 
 ## Files description
 The files in the repository are the following : 
@@ -10,9 +10,11 @@ The files in the repository are the following :
  * `pluto.ini`: the input configuration file for the run
  * `tc_kappa.c`: definition of the Thermal conduction parameter (kappa)
  * `visc_nu.c`: definition of the viscosity parameter (nu)
+ * `update_stage.c`: the update algorithm. The file is modified to force boundary mass flux to zero.
+ * `plot_run.py`: the plotting and info extraction script (see below)
 
 ## How to compile and run
-Provided you are working with a UNIX-compliant system, that PLUTO is installed and the `$PLUTO_DIR` variable set up, the run is setup using the pluto script :
+Provided you are working with a UNIX-compliant system, that PLUTO is installed and the `$PLUTO_DIR` variable is set up, the run is setup using the pluto script :
 ```bash
 python $PLUTO_DIR/setup.py
 ```
@@ -35,4 +37,14 @@ mpirun -np 8 ./pluto
 ```
 
 ## Remarks
-The configuration file `pluto.ini` defines the upper and lower boundaries as outflows. This is because PLUTO is a finite-volume code where boundary conditions are imposed using ghost cells. It is very difficult to get an impenetrable wall with a specific value for the temperature using this method because the value at the actual boundary is found after solving the Riemann problem and will actually depend on the Riemann solver user, a discussion of this problem can be found in (Freytag 2012). To solve this problem, instead of using the ghost layers, we setup an internal boundary and define the values of the first and last layer of cells along the z (vertical) direction. This can be seen in `init.c` at lines 156-189 
+Since the last version of this repo (feb. 2021) substantial changes have been made. In particular in the treatment of boundary conditions. Before the update, we used to define the boundary conditions in the first cell of the domain (at top and bottom boundaries) to avoid mass loss due to the lack of control in the results of the Riemann solver. Since we have adopted a different strategy where the flux is set manually in `update_stage.c`. The values in the ghost layers are still set for the diffusive kernels (thermal conduction and viscosity) to take place. This allows us finer control over what is happening at the boundary and hence perfect mass conservation.
+
+## Plotting and data extraction
+We have also provided in the repo a python (3!) script `plot_run.py` which extracts all the information necessary for the plotting of the runs. The script undergoes the following steps :
+
+ 1. Rendering the simulation. The results are stored as a series of png files in the folder `render`. 
+ 2. Extracting the time evolution of the simulation. This will result in the creation of the `pluto_time.csv` file in the format required for the benchmark as well as the creation of a `time_evolution.png` image with the evolution in time of the mass as well as the kinetic, internal and total energies.
+ 3. Extrating the time evolution of temperature profiles. This will result in the creation of a `temperatures.png` file where each line corresponds to the temperature profile of a snapshot. By default we draw one line every 50 snapshots (hence 20 lines for 1000 snapshots). All the lines should be starting at `z=0` from the top temperature (`Ttop=1.0`) and should end at `z=1` with the same gradient.
+ 4. Finally, the averaged fluxes and profiles for the analysis. These are horizontally averaged and time averaged between the times t=0.895 and t=0.905. This step writes a `pluto_prof.csv` file with the fluxes formatted correctly for the benchmark analysis.
+
+Each step can be deactivated by using the following command line arguments after calling the python script : `--no-render` (step 1); `--no-time-evolution` (step 2); `--no-temperatures` (step 3) and `--no-profiles` (step 4).
