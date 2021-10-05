@@ -40,7 +40,7 @@ mpirun -np 8 ./pluto
 Since the last version of this repo (feb. 2021) substantial changes have been made. In particular in the treatment of boundary conditions. Before the update, we used to define the boundary conditions in the first cell of the domain (at top and bottom boundaries) to avoid mass loss due to the lack of control in the results of the Riemann solver. Since we have adopted a different strategy where the flux is set manually in `update_stage.c`. The values in the ghost layers are still set for the diffusive kernels (thermal conduction and viscosity) to take place. This allows us finer control over what is happening at the boundary and hence perfect mass conservation.
 
 ## Plotting and data extraction
-We have also provided in the repo a python script `plot_run.py` which extracts all the information necessary for the plotting of the runs. The script undergoes the following steps :
+We have also provided in the repo a python (3!) script `plot_run.py` which extracts all the information necessary for the plotting of the runs. The script undergoes the following steps :
 
  1. Rendering the simulation. The results are stored as a series of png files in the folder `render`. 
  2. Extracting the time evolution of the simulation. This will result in the creation of the `pluto_time.csv` file in the format required for the benchmark as well as the creation of a `time_evolution.png` image with the evolution in time of the mass as well as the kinetic, internal and total energies.
