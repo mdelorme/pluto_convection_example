@@ -39,6 +39,8 @@ mpirun -np 8 ./pluto
 ## Remarks
 Since the last version of this repo (feb. 2021) substantial changes have been made. In particular in the treatment of boundary conditions. Before the update, we used to define the boundary conditions in the first cell of the domain (at top and bottom boundaries) to avoid mass loss due to the lack of control in the results of the Riemann solver. Since we have adopted a different strategy where the flux is set manually in `update_stage.c`. The values in the ghost layers are still set for the diffusive kernels (thermal conduction and viscosity) to take place. This allows us finer control over what is happening at the boundary and hence perfect mass conservation.
 
+**Important note** : Running this repo as is will generate ~250Gb of data. This is due to the simultaneous generation of Pluto's binary files (`data.xxxx.dbl`) AND of vtk files (`data.xxxx.vtk`) for visualization. Feel free to deactivate vtk outputs in `pluto.ini` to reduce the generated data to ~150Gb.
+
 ## Plotting and data extraction
 We have also provided in the repo a python (3!) script `plot_run.py` which extracts all the information necessary for the plotting of the runs. The script undergoes the following steps :
 
@@ -48,3 +50,19 @@ We have also provided in the repo a python (3!) script `plot_run.py` which extra
  4. Finally, the averaged fluxes and profiles for the analysis. These are horizontally averaged and time averaged between the times t=0.895 and t=0.905. This step writes a `pluto_prof.csv` file with the fluxes formatted correctly for the benchmark analysis.
 
 Each step can be deactivated by using the following command line arguments after calling the python script : `--no-render` (step 1); `--no-time-evolution` (step 2); `--no-temperatures` (step 3) and `--no-profiles` (step 4).
+
+## Example run
+
+The default run assumes `theta=10.0`, and `sigma=1.0`. Here are some results obtained with the script and with paraview :
+
+### time_evolution.png
+![Time evolution of the default run](/figs/time_evolution.png)
+
+### temperatures.png
+![Temperature evolution of the default run](/figs/temperatures.png)
+
+### Render plot (at t=30.0)
+![Rendering of the run at t=30.0](/figs/rho.0300.png)
+
+### 3D visualization in Paraview at t=30.0
+![3D volume rendering of the vertical velocities at t=30.0](/figs/3D.png)
