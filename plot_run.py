@@ -94,7 +94,7 @@ def plot(sid):
     axd['A'].axhline(2.0, linestyle='--', color='red')
     clim = (-np.abs(front_slice).max(), np.abs(front_slice).max())
     axd['B'].imshow(front_slice, origin='lower', extent=ext_front, clim=clim, cmap='bwr')
-    axd['B'].set_xlabel('Y')
+    axd['B'].set_xlabel('X')
     axd['B'].set_ylabel('d')
     axd['B'].set_title('Temperature variation at y={}'.format(d.x2[Ny//2]))
     axd['C'].plot(depth, rho, '-k', linewidth=2)
